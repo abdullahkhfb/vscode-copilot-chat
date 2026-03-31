@@ -697,6 +697,10 @@ export class TestingGitService implements IGitService {
 		return [];
 	}
 
+	async initRepository(_uri: URI): Promise<RepoContext | undefined> {
+		return Promise.resolve(undefined);
+	}
+
 	async initialize() {
 		return undefined;
 	}
@@ -824,6 +828,10 @@ export class TestingGitService implements IGitService {
 
 	async commit(uri: URI, message: string | undefined, opts?: CommitOptions): Promise<void> {
 		return;
+	}
+
+	async getBranch(_uri: URI, _name: string): Promise<Branch | undefined> {
+		return undefined;
 	}
 
 	async getRefs(uri: URI, query: RefQuery, cancellationToken?: CancellationToken): Promise<Ref[]> {
