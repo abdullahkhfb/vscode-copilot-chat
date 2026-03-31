@@ -42,6 +42,10 @@ export class MockGitService implements IGitService {
 		return [];
 	}
 
+	initRepository(_uri: URI): Promise<RepoContext | undefined> {
+		return Promise.resolve(undefined);
+	}
+
 	getRepositoryFetchUrls = vi.fn().mockImplementation((): Promise<Pick<RepoContext, 'rootUri' | 'remoteFetchUrls'> | undefined> => {
 		this.getRepositoryFetchUrlsCallCount++;
 		return Promise.resolve(this._repositoryFetchUrls);
@@ -144,6 +148,10 @@ export class MockGitService implements IGitService {
 
 	commit(uri: URI, message: string | undefined, opts?: CommitOptions): Promise<void> {
 		return Promise.resolve();
+	}
+
+	getBranch(_uri: URI, _name: string): Promise<Branch | undefined> {
+		return Promise.resolve(undefined);
 	}
 
 	getRefs(uri: URI, query: RefQuery, cancellationToken?: CancellationToken): Promise<Ref[]> {
