@@ -62,8 +62,6 @@ class NullAgentSessionsWorkspace implements IAgentSessionsWorkspace {
 }
 
 class NullChatSessionWorkspaceFolderService extends mock<IChatSessionWorkspaceFolderService>() {
-	override getRecentFolders = vi.fn(async () => []);
-	override deleteRecentFolder = vi.fn(async () => { });
 	override deleteTrackedWorkspaceFolder = vi.fn(async () => { });
 	override trackSessionWorkspaceFolder = vi.fn(async () => { });
 	override getSessionWorkspaceFolder = vi.fn(async () => undefined);
@@ -94,7 +92,7 @@ function workspaceInfoFor(workingDirectory: Uri | undefined): IWorkspaceInfo {
 
 function sessionOptionsFor(workingDirectory?: Uri) {
 	return {
-		workspaceInfo: workspaceInfoFor(workingDirectory),
+		workspace: workspaceInfoFor(workingDirectory),
 	};
 }
 
