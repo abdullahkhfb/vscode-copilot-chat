@@ -51,6 +51,7 @@ import { ICopilotCLISessionItem, ICopilotCLISessionService } from '../copilotcli
 import { buildMcpServerMappings } from '../copilotcli/node/mcpHandler';
 import { ICopilotCLISessionTracker } from '../copilotcli/vscode-node/copilotCLISessionTracker';
 import { ICopilotCLIChatSessionItemProvider } from './copilotCLIChatSessions';
+import { ICopilotCLIFolderMruService } from './copilotCLIFolderMru';
 import { convertReferenceToVariable } from './copilotCLIPromptReferences';
 import { ICopilotCLITerminalIntegration, TerminalOpenLocation } from './copilotCLITerminalIntegration';
 import { CopilotCloudSessionsProvider } from './copilotCloudSessionsProvider';
@@ -471,6 +472,7 @@ export class CopilotCLIChatSessionContentProvider extends Disposable implements 
 		@ICustomSessionTitleService private readonly customSessionTitleService: ICustomSessionTitleService,
 		@IVSCodeExtensionContext private readonly context: IVSCodeExtensionContext,
 		@ILogService private readonly logService: ILogService,
+		@ICopilotCLIFolderMruService private readonly folderMruService: ICopilotCLIFolderMruService,
 	) {
 		super();
 		const originalRepos = this.getRepositoryOptionItems().length;
@@ -501,7 +503,7 @@ export class CopilotCLIChatSessionContentProvider extends Disposable implements 
 	}
 
 	private async getDefaultUntitledSessionRepositoryOption(copilotcliSessionId: string | undefined, token: vscode.CancellationToken) {
-		const repositories = this.isUntitledWorkspace() ? folderMRUToChatProviderOptions(await this.folderRepositoryManager.getFolderMRU()) : this.getRepositoryOptionItems();
+		const repositories = this.isUntitledWorkspace() ? folderMRUToChatProviderOptions(await this.folderMruService.getRecentlyUsedFolders(token)) : this.getRepositoryOptionItems();
 		// Use FolderRepositoryManager to get folder/repository info (no trust check needed for UI population)
 		const folderInfo = copilotcliSessionId ? await this.folderRepositoryManager.getFolderRepository(copilotcliSessionId, undefined, token) : undefined;
 		const uri = folderInfo?.repository ?? folderInfo?.folder;
@@ -701,7 +703,7 @@ export class CopilotCLIChatSessionContentProvider extends Disposable implements 
 
 	private async forkSession(sessionId: string, requestId: string | undefined, token: CancellationToken): Promise<vscode.ChatSessionItem> {
 		const folderInfo = await this.folderRepositoryManager.getFolderRepository(sessionId, undefined, token);
-		const forkedSessionId = await this.sessionService.forkSession(sessionId, requestId, { workspaceInfo: folderInfo }, token);
+		const forkedSessionId = await this.sessionService.forkSession({ sessionId, requestId, workspace: folderInfo }, token);
 
 		const items = await this.sessionItemProvider.provideChatSessionItems(token);
 		const forkedSessionUri = SessionIdForCLI.getResource(forkedSessionId);
@@ -750,9 +752,15 @@ export class CopilotCLIChatSessionContentProvider extends Disposable implements 
 		// Handle repository options based on workspace type
 		if (this.isUntitledWorkspace()) {
 			// For untitled workspaces, show last used repositories and "Open Repository..." command
-			const repositories = await this.folderRepositoryManager.getFolderMRU();
+			const repositories = await this.folderMruService.getRecentlyUsedFolders(CancellationToken.None);
 			const items = folderMRUToChatProviderOptions(repositories);
 			items.splice(MAX_MRU_ENTRIES); // Limit to max entries
+
+			if (this._lastUsedFolderIdInUntitledWorkspace && !items.some(repo => repo.id === this._lastUsedFolderIdInUntitledWorkspace)) {
+				const uri = Uri.file(this._lastUsedFolderIdInUntitledWorkspace);
+				items.unshift(toWorkspaceFolderOptionItem(uri, basename(uri)));
+			}
+
 			const commands: vscode.Command[] = [];
 			commands.push({
 				command: OPEN_REPOSITORY_COMMAND_ID,
@@ -992,7 +1000,7 @@ export class CopilotCLIChatSessionContentProvider extends Disposable implements 
 						triggerProviderOptionsChange = true;
 					}
 				} else {
-					await this.folderRepositoryManager.deleteMRUEntry(folder);
+					await this.folderMruService.deleteRecentlyUsedFolder(folder);
 					const message = l10n.t('The path \'{0}\' does not exist on this computer.', folder.fsPath);
 					vscode.window.showErrorMessage(l10n.t('Path does not exist'), { modal: true, detail: message });
 					const defaultRepo = await this.getDefaultUntitledSessionRepositoryOption(sessionId, token);
@@ -1679,8 +1687,8 @@ export class CopilotCLIChatSessionParticipant extends Disposable {
 		const debugTargetSessionIds = extractDebugTargetSessionIds(request.references);
 		const mcpServerMappings = buildMcpServerMappings(request.tools);
 		const session = isNewSession ?
-			await this.sessionService.createSession({ model, workspaceInfo, agent, debugTargetSessionIds, mcpServerMappings }, token) :
-			await this.sessionService.getSession({ sessionId: id, model, workspaceInfo, agent, debugTargetSessionIds, mcpServerMappings }, token);
+			await this.sessionService.createSession({ model, workspace: workspaceInfo, agent, debugTargetSessionIds, mcpServerMappings }, token) :
+			await this.sessionService.getSession({ sessionId: id, model, workspace: workspaceInfo, agent, debugTargetSessionIds, mcpServerMappings }, token);
 		this.sessionItemProvider.notifySessionsChange();
 		// TODO @DonJayamanne We need to refresh to add this new session, but we need a label.
 		// So when creating a session we need a dummy label (or an initial prompt).
@@ -1825,7 +1833,7 @@ export class CopilotCLIChatSessionParticipant extends Disposable {
 		const { prompt, attachments, references } = await this.promptResolver.resolvePrompt(request, await requestPromptPromise, (otherReferences || []).concat([]), workspaceInfo, [], token);
 
 		const mcpServerMappings = buildMcpServerMappings(request.tools);
-		const session = await this.sessionService.createSession({ workspaceInfo, agent, model, mcpServerMappings }, token);
+		const session = await this.sessionService.createSession({ workspace: workspaceInfo, agent, model, mcpServerMappings }, token);
 		const modeInstructions = this.createModeInstructions(request);
 		this.chatSessionMetadataStore.updateRequestDetails(session.object.sessionId, [{ vscodeRequestId: request.id, agentId: agent?.name ?? '', modeInstructions }]).catch(ex => this.logService.error(ex, 'Failed to update request details'));
 		if (summary) {
@@ -1912,6 +1920,7 @@ export function registerCLIChatCommands(
 	copilotCliWorkspaceSession: IChatSessionWorkspaceFolderService,
 	contentProvider: CopilotCLIChatSessionContentProvider,
 	folderRepositoryManager: IFolderRepositoryManager,
+	cliFolderMruService: ICopilotCLIFolderMruService,
 	envService: INativeEnvService,
 	fileSystemService: IFileSystemService,
 	logService: ILogService
@@ -2100,14 +2109,13 @@ export function registerCLIChatCommands(
 		}
 
 		let selectedFolderUri: Uri | undefined = undefined;
-		const mruItems = await folderRepositoryManager.getFolderMRU();
+		const mruItems = await cliFolderMruService.getRecentlyUsedFolders(CancellationToken.None);
 
 		if (mruItems.length === 0) {
 			selectedFolderUri = await selectFolder();
 		} else {
 			type RecentFolderQuickPickItem = vscode.QuickPickItem & ({ folderUri: vscode.Uri; openFolder: false } | { folderUri: undefined; openFolder: true });
 			const items: RecentFolderQuickPickItem[] = mruItems
-				.filter(item => !item.isUntitledSessionSelection)
 				.map(item => {
 					const optionItem = item.repository
 						? toRepositoryOptionItem(item.folder)
