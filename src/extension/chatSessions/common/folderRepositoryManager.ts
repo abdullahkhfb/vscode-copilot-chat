@@ -28,6 +28,7 @@ export interface InitializeFolderRepositoryOptions {
 	readonly isolation?: IsolationMode;
 	readonly stream: vscode.ChatResponseStream;
 	readonly toolInvocationToken: vscode.ChatParticipantToolToken;
+	readonly newBranch?: Promise<string | undefined>;
 }
 
 /**
@@ -130,6 +131,26 @@ export interface IFolderRepositoryManager {
 		options: InitializeFolderRepositoryOptions,
 		token: vscode.CancellationToken
 	): Promise<FolderRepositoryInfo>;
+
+	/**
+	 * Initialize all folders for a multi-root session as a batch.
+	 *
+	 * Unlike calling `initializeFolderRepository` per folder, this method:
+	 * 1. Resolves all folder/repo info in one pass
+	 * 2. Verifies trust for all folders together
+	 * 3. Collects uncommitted changes across ALL git repos
+	 * 4. Shows ONE combined prompt listing all repos with uncommitted changes
+	 * 5. Applies the same action (move/copy/skip/cancel) to all repos
+	 * 6. Creates worktrees for all git repos in parallel
+	 * 7. Migrates changes to all worktrees with the same action
+	 */
+	initializeMultiRootFolderRepositories(
+		sessionId: string,
+		primaryFolder: vscode.Uri,
+		additionalFolders: vscode.Uri[],
+		options: InitializeFolderRepositoryOptions,
+		token: vscode.CancellationToken
+	): Promise<{ primary: FolderRepositoryInfo; additional: FolderRepositoryInfo[] }>;
 
 	/**
 	 * Get repository information for a folder.
