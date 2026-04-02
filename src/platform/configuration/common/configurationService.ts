@@ -638,7 +638,7 @@ export namespace ConfigKey {
 
 		export const InstantApplyShortModelName = defineAndMigrateExpSetting<string>('chat.advanced.instantApply.shortContextModelName', 'chat.instantApply.shortContextModelName', CHAT_MODEL.SHORT_INSTANT_APPLY);
 		export const InstantApplyShortContextLimit = defineAndMigrateExpSetting<number>('chat.advanced.instantApply.shortContextLimit', 'chat.instantApply.shortContextLimit', 8000);
-		export const AgentHistorySummarizationWithPromptCache = defineAndMigrateExpSetting<boolean | undefined>('chat.advanced.agentHistorySummarizationWithPromptCache', 'chat.agentHistorySummarizationWithPromptCache', false);
+		export const AgentHistorySummarizationCacheFriendly = defineAndMigrateExpSetting<boolean>('chat.advanced.agentHistorySummarizationCacheFriendly', 'chat.agentHistorySummarizationCacheFriendly', false);
 		export const PromptFileContext = defineAndMigrateExpSetting<boolean>('chat.advanced.promptFileContextProvider.enabled', 'chat.promptFileContextProvider.enabled', true);
 		export const DefaultToolsGrouped = defineAndMigrateExpSetting<boolean>('chat.advanced.tools.defaultToolsGrouped', 'chat.tools.defaultToolsGrouped', false);
 		export const Gpt5AlternativePatch = defineAndMigrateExpSetting<boolean>('chat.advanced.gpt5AlternativePatch', 'chat.gpt5AlternativePatch', false);
@@ -753,6 +753,7 @@ export namespace ConfigKey {
 		export const DebugExpUseElectronFetcher = defineTeamInternalSetting<boolean | undefined>('chat.advanced.debug.useElectronFetcher', ConfigType.ExperimentBased, undefined);
 		export const InlineEditsAsyncCompletions = defineTeamInternalSetting<boolean>('chat.advanced.inlineEdits.asyncCompletions', ConfigType.ExperimentBased, true);
 		export const InlineEditsEagerBackupRequest = defineTeamInternalSetting<boolean>('chat.advanced.inlineEdits.eagerBackupRequest', ConfigType.ExperimentBased, false);
+		export const InlineEditsCheckEditWindowOnReuse = defineTeamInternalSetting<boolean>('chat.advanced.inlineEdits.checkEditWindowOnReuse', ConfigType.ExperimentBased, false);
 		export const InlineEditsDebounceUseCoreRequestTime = defineTeamInternalSetting<boolean>('chat.advanced.inlineEdits.debounceUseCoreRequestTime', ConfigType.ExperimentBased, false);
 		export const InlineEditsYieldToCopilot = defineTeamInternalSetting<boolean>('chat.advanced.inlineEdits.yieldToCopilot', ConfigType.ExperimentBased, false);
 		export const InlineEditsExcludedProviders = defineTeamInternalSetting<string | undefined>('chat.advanced.inlineEdits.excludedProviders', ConfigType.ExperimentBased, undefined);
